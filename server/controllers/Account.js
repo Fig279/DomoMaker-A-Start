@@ -2,7 +2,6 @@ const models = require('../models');
 
 const Account = models.Account;
 
-// login page
 const loginPage = (req, res) => {
   return res.render('login');
 };
@@ -18,7 +17,7 @@ const logout = (req, res) => {
   res.redirect('/');
 };
 
-// Check the login info and, store the account in the session.
+// Check the login info and, if it is valid, store the account in the session.
 const login = (req, res) => {
   const username = `${req.body.username}`;
   const pass = `${req.body.pass}`;
@@ -38,7 +37,7 @@ const login = (req, res) => {
   });
 };
 
-// Validate the signup info, save the account, log the user in
+// Validate the signup info, hash the password, save the account, and log the user in.
 const signup = async (req, res) => {
   const username = `${req.body.username}`;
   const pass = `${req.body.pass}`;

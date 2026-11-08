@@ -1,3 +1,6 @@
+// Load variables from the .env file into process.env (must be first).
+require('dotenv').config();
+
 const path = require('path');
 const express = require('express');
 const compression = require('compression');
@@ -6,12 +9,14 @@ const mongoose = require('mongoose');
 const expressHandlebars = require('express-handlebars');
 const helmet = require('helmet');
 const session = require('express-session');
+const RedisStore = require('connect-redis').RedisStore;
+const redis = require('redis');
 
 const router = require('./router.js');
 
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
 
-// Connect to MongoDB: use the cloud URI if set, otherwise local
+// Connect to MongoDB: use the cloud URI if set, otherwise local Mongo.
 const dbURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1/DomoMaker';
 mongoose.connect(dbURI).catch((err) => {
   if (err) {
@@ -20,33 +25,43 @@ mongoose.connect(dbURI).catch((err) => {
   }
 });
 
-// Set up the express app
-const app = express();
+// Create the Redis client used to store sessions.
+const redisClient = redis.createClient({
+  url: process.env.REDISCLOUD_URL,
+});
 
-app.use(helmet());
-app.use('/assets', express.static(path.resolve(`${__dirname}/../hosted`)));
-app.use(favicon(`${__dirname}/../hosted/img/favicon.png`));
-app.use(compression());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+redisClient.on('error', err => console.log('Redis Client Error', err));
 
-// Track logged-in users with session cookies
-app.use(session({
-  key: 'sessionid',
-  secret: 'Domo Arigato',
-  resave: false,
-  saveUninitialized: false,
-}));
+// Wait for Redis to connect before setting up and starting the server.
+redisClient.connect().then(() => {
+  const app = express();
 
-// Set up handlebars for views
-app.engine('handlebars', expressHandlebars.engine({ defaultLayout: '' }));
-app.set('view engine', 'handlebars');
-app.set('views', `${__dirname}/../views`);
+  app.use(helmet());
+  app.use('/assets', express.static(path.resolve(`${__dirname}/../hosted`)));
+  app.use(favicon(`${__dirname}/../hosted/img/favicon.png`));
+  app.use(compression());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json());
 
-// Attach routes, start server
-router(app);
+  // Store session data in Redis so sessions survive server restarts.
+  app.use(session({
+    key: 'sessionid',
+    store: new RedisStore({
+      client: redisClient,
+    }),
+    secret: 'Domo Arigato',
+    resave: false,
+    saveUninitialized: false,
+  }));
 
-app.listen(port, (err) => {
-  if (err) { throw err; }
-  console.log(`Listening on port ${port}`);
+  app.engine('handlebars', expressHandlebars.engine({ defaultLayout: '' }));
+  app.set('view engine', 'handlebars');
+  app.set('views', `${__dirname}/../views`);
+
+  router(app);
+
+  app.listen(port, (err) => {
+    if (err) { throw err; }
+    console.log(`Listening on port ${port}`);
+  });
 });

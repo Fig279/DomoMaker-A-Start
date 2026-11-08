@@ -2,7 +2,7 @@ const models = require('../models');
 
 const Domo = models.Domo;
 
-// Show only the logged-in user's Domos
+// Show the app page with only the logged-in user's Domos.
 const makerPage = async (req, res) => {
   try {
     const query = { owner: req.session.account._id };
@@ -15,7 +15,7 @@ const makerPage = async (req, res) => {
   }
 };
 
-// Create a new Domo r
+// Create a new Domo owned by the logged-in user.
 const makeDomo = async (req, res) => {
   if (!req.body.name || !req.body.age) {
     return res.status(400).json({ error: 'Both name and age are required!' });
