@@ -2,18 +2,23 @@ const models = require('../models');
 
 const Account = models.Account;
 
+// login page
 const loginPage = (req, res) => {
   return res.render('login');
 };
 
+// signup page
 const signupPage = (req, res) => {
   return res.render('signup');
 };
 
+// Destroy the session and send the user back to the login page
 const logout = (req, res) => {
-  return res.redirect('/');
+  req.session.destroy();
+  res.redirect('/');
 };
 
+// Check the login info and, store the account in the session.
 const login = (req, res) => {
   const username = `${req.body.username}`;
   const pass = `${req.body.pass}`;
@@ -27,10 +32,13 @@ const login = (req, res) => {
       return res.status(401).json({ error: 'Wrong username or password!' });
     }
 
+    req.session.account = Account.toAPI(account);
+
     return res.json({ redirect: '/maker' });
   });
 };
 
+// Validate the signup info, save the account, log the user in
 const signup = async (req, res) => {
   const username = `${req.body.username}`;
   const pass = `${req.body.pass}`;
@@ -48,6 +56,7 @@ const signup = async (req, res) => {
     const hash = await Account.generateHash(pass);
     const newAccount = new Account({ username, password: hash });
     await newAccount.save();
+    req.session.account = Account.toAPI(newAccount);
     return res.json({ redirect: '/maker' });
   } catch (err) {
     console.log(err);
